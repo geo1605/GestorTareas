@@ -1,6 +1,6 @@
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
-import { Platform } from 'react-native';
+import * as Device from "expo-device";
+import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -16,19 +16,19 @@ export async function requestPermissions() {
   const { status: existing } = await Notifications.getPermissionsAsync();
   let finalStatus = existing;
 
-  if (existing !== 'granted') {
+  if (existing !== "granted") {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
 
-  if (finalStatus !== 'granted') return false;
+  if (finalStatus !== "granted") return false;
 
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "default",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C',
+      lightColor: "#FF231F7C",
     });
   }
 
@@ -46,9 +46,9 @@ export async function schedulePlantNotification(plant) {
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: '🌱 Hora de regar',
+      title: "🌱 Hora de regar",
       body: `Tu planta "${plant.name}" necesita agua`,
-      data: { type: 'plant', id: plant.id },
+      data: { type: "plant", id: plant.id },
     },
     trigger,
   });
@@ -67,16 +67,16 @@ export async function scheduleTaskNotification(task) {
 
   if (!task.hasTime || !task.time) return [];
 
-  const [hour, minute] = task.time.split(':').map(Number);
+  const [hour, minute] = task.time.split(":").map(Number);
   const ids = [];
 
   if (!task.repeats) {
     // One-time notification today or next occurrence
     const id = await Notifications.scheduleNotificationAsync({
       content: {
-        title: '✅ Tarea pendiente',
+        title: "✅ Tarea pendiente",
         body: task.title,
-        data: { type: 'task', id: task.id },
+        data: { type: "task", id: task.id },
       },
       trigger: { hour, minute, repeats: false },
     });
@@ -84,7 +84,13 @@ export async function scheduleTaskNotification(task) {
   } else {
     // Repeating on specific days
     const dayMap = {
-      'L': 2, 'M': 3, 'X': 4, 'J': 5, 'V': 6, 'S': 7, 'D': 1,
+      L: 2,
+      M: 3,
+      X: 4,
+      J: 5,
+      V: 6,
+      S: 7,
+      D: 1,
     };
 
     for (const day of task.repeatDays) {
@@ -92,9 +98,9 @@ export async function scheduleTaskNotification(task) {
       if (!weekday) continue;
       const id = await Notifications.scheduleNotificationAsync({
         content: {
-          title: '✅ Tarea pendiente',
+          title: "✅ Tarea pendiente",
           body: task.title,
-          data: { type: 'task', id: task.id },
+          data: { type: "task", id: task.id },
         },
         trigger: { weekday, hour, minute, repeats: true },
       });

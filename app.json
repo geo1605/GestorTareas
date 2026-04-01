@@ -4,10 +4,10 @@
     "slug": "mi-gestor",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#0a0a0f"
     },
@@ -16,7 +16,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
+          "icon": "./assets/logo.png",
           "color": "#ffffff",
           "sounds": []
         }
@@ -25,7 +25,7 @@
     "scheme": "migestor",
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#0a0a0f"
       },
       "package": "com.migestor.app",
@@ -42,6 +42,14 @@
     },
     "web": {
       "bundler": "metro"
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "5038e17f-6531-4636-a67b-40a5b5f81a25"
+      }
     }
   }
 }

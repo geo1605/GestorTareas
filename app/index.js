@@ -1,8 +1,11 @@
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"; // <-- Agregado para íconos
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -16,6 +19,24 @@ import uuid from "react-native-uuid";
 import { getGymDays, saveGymDays } from "../utils/storage";
 import { COLORS, RADIUS, SPACING } from "../utils/theme";
 
+// ─── Sombras reutilizables ─────────────────────────────────────
+const SHADOWS = {
+  card: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  button: {
+    shadowColor: COLORS.gym || "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+};
+
 // ─── Exercise Weight Editor ────────────────────────────────────
 function ExerciseItem({ exercise, onUpdateWeight, onDelete }) {
   const [editing, setEditing] = useState(false);
@@ -23,15 +44,35 @@ function ExerciseItem({ exercise, onUpdateWeight, onDelete }) {
 
   const handleSave = () => {
     const parsed = parseFloat(tempWeight);
-    if (!isNaN(parsed)) onUpdateWeight(exercise.id, parsed);
+    if (!isNaN(parsed)) {
+      onUpdateWeight(exercise.id, parsed);
+    } else {
+      setTempWeight(String(exercise.weight || ""));
+    }
     setEditing(false);
   };
 
+  const confirmDelete = () => {
+    Alert.alert(
+      "Eliminar ejercicio",
+      `¿Seguro que deseas eliminar "${exercise.name}"?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: () => onDelete(exercise.id),
+        },
+      ],
+    );
+  };
+
   return (
-    <View style={styles.exerciseRow}>
+    <View style={[styles.exerciseRow, SHADOWS.card]}>
       <View style={styles.exerciseInfo}>
         <Text style={styles.exerciseName}>{exercise.name}</Text>
         <Text style={styles.exerciseSets}>
+          <Ionicons name="repeat" size={12} color={COLORS.textMuted} />{" "}
           {exercise.sets} series × {exercise.reps} reps
         </Text>
       </View>
@@ -45,27 +86,42 @@ function ExerciseItem({ exercise, onUpdateWeight, onDelete }) {
             keyboardType="decimal-pad"
             autoFocus
             selectTextOnFocus
+            onBlur={handleSave}
           />
           <Text style={styles.weightUnit}>kg</Text>
-          <TouchableOpacity onPress={handleSave} style={styles.saveBtn}>
-            <Text style={styles.saveBtnText}>✓</Text>
+          <TouchableOpacity
+            onPress={handleSave}
+            style={styles.saveBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="checkmark-sharp" size={16} color="#000" />
           </TouchableOpacity>
         </View>
       ) : (
         <TouchableOpacity
           onPress={() => setEditing(true)}
           style={styles.weightPill}
+          activeOpacity={0.7}
         >
-          <Text style={styles.weightValue}>{exercise.weight || 0} kg</Text>
-          <Text style={styles.weightEditHint}>✎</Text>
+          <Text style={styles.weightValue}>
+            {exercise.weight || 0}{" "}
+            <Text style={styles.weightUnitSmall}>kg</Text>
+          </Text>
+          <Ionicons
+            name="pencil"
+            size={12}
+            color={COLORS.gym}
+            style={{ marginLeft: 6 }}
+          />
         </TouchableOpacity>
       )}
 
       <TouchableOpacity
-        onPress={() => onDelete(exercise.id)}
+        onPress={confirmDelete}
         style={styles.deleteBtn}
+        hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
       >
-        <Text style={styles.deleteBtnText}>✕</Text>
+        <Ionicons name="trash-outline" size={18} color={COLORS.textMuted} />
       </TouchableOpacity>
     </View>
   );
@@ -86,7 +142,8 @@ function AddExerciseModal({ visible, onClose, onAdd }) {
   };
 
   const handleAdd = () => {
-    if (!name.trim()) return Alert.alert("Falta el nombre del ejercicio");
+    if (!name.trim())
+      return Alert.alert("Ups", "Falta el nombre del ejercicio");
     onAdd({
       id: uuid.v4(),
       name: name.trim(),
@@ -105,60 +162,72 @@ function AddExerciseModal({ visible, onClose, onAdd }) {
       transparent
       onRequestClose={onClose}
     >
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Nuevo Ejercicio</Text>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.overlay}
+      >
+        <Pressable style={styles.overlayInner} onPress={onClose}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Nuevo Ejercicio</Text>
 
-          <Text style={styles.inputLabel}>Nombre del ejercicio</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="ej. Press banca"
-            placeholderTextColor={COLORS.textMuted}
-          />
-
-          <View style={styles.row3}>
-            <View style={styles.col}>
-              <Text style={styles.inputLabel}>Series</Text>
+            <Text style={styles.inputLabel}>Nombre del ejercicio</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons
+                name="barbell-outline"
+                size={18}
+                color={COLORS.textMuted}
+                style={styles.inputIcon}
+              />
               <TextInput
-                style={styles.input}
-                value={sets}
-                onChangeText={setSets}
-                keyboardType="number-pad"
+                style={styles.inputFlex}
+                value={name}
+                onChangeText={setName}
+                placeholder="ej. Press de banca"
+                placeholderTextColor={COLORS.textMuted}
               />
             </View>
-            <View style={styles.col}>
-              <Text style={styles.inputLabel}>Reps</Text>
-              <TextInput
-                style={styles.input}
-                value={reps}
-                onChangeText={setReps}
-                keyboardType="number-pad"
-              />
-            </View>
-            <View style={styles.col}>
-              <Text style={styles.inputLabel}>Peso (kg)</Text>
-              <TextInput
-                style={styles.input}
-                value={weight}
-                onChangeText={setWeight}
-                keyboardType="decimal-pad"
-              />
-            </View>
-          </View>
 
-          <TouchableOpacity
-            style={[styles.primaryBtn, { backgroundColor: COLORS.gym }]}
-            onPress={handleAdd}
-          >
-            <Text style={[styles.primaryBtnText, { color: "#000" }]}>
-              Agregar
-            </Text>
-          </TouchableOpacity>
+            <View style={styles.row3}>
+              <View style={styles.col}>
+                <Text style={styles.inputLabel}>Series</Text>
+                <TextInput
+                  style={styles.inputBox}
+                  value={sets}
+                  onChangeText={setSets}
+                  keyboardType="number-pad"
+                />
+              </View>
+              <View style={styles.col}>
+                <Text style={styles.inputLabel}>Reps</Text>
+                <TextInput
+                  style={styles.inputBox}
+                  value={reps}
+                  onChangeText={setReps}
+                  keyboardType="number-pad"
+                />
+              </View>
+              <View style={styles.col}>
+                <Text style={styles.inputLabel}>Peso (kg)</Text>
+                <TextInput
+                  style={styles.inputBox}
+                  value={weight}
+                  onChangeText={setWeight}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.primaryBtn, SHADOWS.button]}
+              onPress={handleAdd}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.primaryBtnText}>Agregar Ejercicio</Text>
+            </TouchableOpacity>
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -168,7 +237,7 @@ function AddDayModal({ visible, onClose, onAdd }) {
   const [name, setName] = useState("");
 
   const handleAdd = () => {
-    if (!name.trim()) return Alert.alert("Escribe el nombre del día");
+    if (!name.trim()) return Alert.alert("Ups", "Escribe el nombre del día");
     onAdd(name.trim());
     setName("");
     onClose();
@@ -181,29 +250,43 @@ function AddDayModal({ visible, onClose, onAdd }) {
       transparent
       onRequestClose={onClose}
     >
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Nuevo Día</Text>
-          <Text style={styles.inputLabel}>Nombre del día</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="ej. Día 1 – Pecho y Tríceps"
-            placeholderTextColor={COLORS.textMuted}
-            autoFocus
-          />
-          <TouchableOpacity
-            style={[styles.primaryBtn, { backgroundColor: COLORS.gym }]}
-            onPress={handleAdd}
-          >
-            <Text style={[styles.primaryBtnText, { color: "#000" }]}>
-              Crear día
-            </Text>
-          </TouchableOpacity>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.overlay}
+      >
+        <Pressable style={styles.overlayInner} onPress={onClose}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Nuevo Día de Rutina</Text>
+
+            <Text style={styles.inputLabel}>Nombre del día</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons
+                name="calendar-outline"
+                size={18}
+                color={COLORS.textMuted}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.inputFlex}
+                value={name}
+                onChangeText={setName}
+                placeholder="ej. Pecho y Tríceps"
+                placeholderTextColor={COLORS.textMuted}
+                autoFocus
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.primaryBtn, SHADOWS.button]}
+              onPress={handleAdd}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.primaryBtnText}>Crear Día</Text>
+            </TouchableOpacity>
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -217,7 +300,10 @@ export default function GymScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      getGymDays().then(setDays);
+      getGymDays().then((data) => {
+        setDays(data);
+        if (data.length > 0 && !selectedDay) setSelectedDay(data[0]);
+      });
     }, []),
   );
 
@@ -234,18 +320,22 @@ export default function GymScreen() {
   };
 
   const deleteDay = (dayId) => {
-    Alert.alert("Eliminar día", "¿Seguro?", [
-      { text: "Cancelar" },
-      {
-        text: "Eliminar",
-        style: "destructive",
-        onPress: () => {
-          const updated = days.filter((d) => d.id !== dayId);
-          persist(updated);
-          if (selectedDay?.id === dayId) setSelectedDay(null);
+    Alert.alert(
+      "Eliminar rutina",
+      "¿Eliminar este día y todos sus ejercicios?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: () => {
+            const updated = days.filter((d) => d.id !== dayId);
+            persist(updated);
+            if (selectedDay?.id === dayId) setSelectedDay(updated[0] || null);
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const addExercise = (exercise) => {
@@ -291,24 +381,27 @@ export default function GymScreen() {
     <SafeAreaView style={styles.safe}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerLabel}>MÓDULO</Text>
-          <Text style={styles.headerTitle}>Gym 💪</Text>
-          <Text style={styles.headerSub}>Registra tu rutina y progreso</Text>
+          <Text style={styles.headerTitle}>Gym</Text>
+          <Text style={styles.headerSub}>
+            Registra tu rutina y supera tus límites
+          </Text>
         </View>
 
         {/* Days list */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Días de entrenamiento</Text>
+            <Text style={styles.sectionTitle}>Tus Rutinas</Text>
             <TouchableOpacity
-              style={styles.addCircle}
+              style={styles.iconBtn}
               onPress={() => setShowAddDay(true)}
             >
-              <Text style={styles.addCircleText}>+</Text>
+              <Ionicons name="add" size={24} color={COLORS.gym} />
             </TouchableOpacity>
           </View>
 
@@ -316,64 +409,94 @@ export default function GymScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.daysRow}
+            contentContainerStyle={{
+              paddingRight: SPACING.md,
+              paddingLeft: SPACING.md,
+              paddingBottom: 10,
+            }}
           >
-            {days.map((day) => (
-              <TouchableOpacity
-                key={day.id}
-                onPress={() => setSelectedDay(day)}
-                onLongPress={() => deleteDay(day.id)}
-                style={[
-                  styles.dayChip,
-                  selectedDay?.id === day.id && styles.dayChipActive,
-                ]}
-              >
-                <Text
+            {days.map((day) => {
+              const isActive = selectedDay?.id === day.id;
+              return (
+                <TouchableOpacity
+                  key={day.id}
+                  onPress={() => setSelectedDay(day)}
+                  onLongPress={() => deleteDay(day.id)}
+                  activeOpacity={0.7}
                   style={[
-                    styles.dayChipText,
-                    selectedDay?.id === day.id && styles.dayChipTextActive,
+                    styles.dayChip,
+                    isActive ? styles.dayChipActive : SHADOWS.card,
                   ]}
                 >
-                  {day.name}
-                </Text>
-                <Text style={styles.dayChipCount}>
-                  {day.exercises.length} ejercicios
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.dayChipText,
+                      isActive && styles.dayChipTextActive,
+                    ]}
+                  >
+                    {day.name}
+                  </Text>
+                  <View style={styles.dayChipBadge}>
+                    <Text
+                      style={[
+                        styles.dayChipCount,
+                        isActive && { color: COLORS.gym },
+                      ]}
+                    >
+                      {day.exercises.length} ej.
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+
             {days.length === 0 && (
-              <Text style={styles.emptyHint}>
-                Toca + para agregar tu primer día
-              </Text>
+              <TouchableOpacity
+                style={styles.emptyDayChip}
+                onPress={() => setShowAddDay(true)}
+              >
+                <Ionicons
+                  name="add-circle-outline"
+                  size={20}
+                  color={COLORS.gym}
+                />
+                <Text style={styles.emptyHint}>Crear primer día</Text>
+              </TouchableOpacity>
             )}
           </ScrollView>
         </View>
 
         {/* Exercises for selected day */}
         {currentDay && (
-          <View style={styles.section}>
+          <View style={[styles.section, { marginHorizontal: SPACING.md }]}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{currentDay.name}</Text>
               <TouchableOpacity
-                style={[
-                  styles.addCircle,
-                  { backgroundColor: COLORS.gymBg, borderColor: COLORS.gym },
-                ]}
+                style={[styles.iconBtn, { backgroundColor: COLORS.gym }]}
                 onPress={() => setShowAddExercise(true)}
               >
-                <Text style={[styles.addCircleText, { color: COLORS.gym }]}>
-                  +
-                </Text>
+                <Ionicons name="add" size={24} color="#000" />
               </TouchableOpacity>
             </View>
 
             {currentDay.exercises.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyCardEmoji}>🏋️</Text>
-                <Text style={styles.emptyCardText}>Sin ejercicios aún</Text>
+              <TouchableOpacity
+                style={styles.emptyCard}
+                onPress={() => setShowAddExercise(true)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.emptyIconCircle}>
+                  <MaterialCommunityIcons
+                    name="weight-lifter"
+                    size={48}
+                    color={COLORS.gym}
+                  />
+                </View>
+                <Text style={styles.emptyCardText}>No hay ejercicios aquí</Text>
                 <Text style={styles.emptyCardSub}>
-                  Toca + para agregar ejercicios
+                  Toca para comenzar a armar tu rutina
                 </Text>
-              </View>
+              </TouchableOpacity>
             ) : (
               currentDay.exercises.map((ex) => (
                 <ExerciseItem
@@ -412,87 +535,123 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.md,
   },
   headerLabel: {
-    fontSize: 11,
-    fontWeight: "700",
+    fontSize: 12,
+    fontWeight: "800",
     color: COLORS.gym,
-    letterSpacing: 2,
-    marginBottom: 4,
+    letterSpacing: 1.5,
+    marginBottom: 6,
+    textTransform: "uppercase",
   },
-  headerTitle: { fontSize: 36, fontWeight: "800", color: COLORS.text },
-  headerSub: { fontSize: 14, color: COLORS.textMuted, marginTop: 4 },
+  headerTitle: {
+    fontSize: 38,
+    fontWeight: "900",
+    color: COLORS.text,
+    letterSpacing: -0.5,
+  },
+  headerEmoji: { fontSize: 32 },
+  headerSub: {
+    fontSize: 15,
+    color: COLORS.textMuted,
+    marginTop: 4,
+    fontWeight: "500",
+  },
 
-  section: { marginHorizontal: SPACING.md, marginBottom: SPACING.lg },
+  section: { marginBottom: SPACING.xl },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.md,
   },
-  sectionTitle: { fontSize: 16, fontWeight: "700", color: COLORS.text },
+  sectionTitle: { fontSize: 20, fontWeight: "800", color: COLORS.text },
 
-  addCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.bgElevated,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.gymBg,
     alignItems: "center",
     justifyContent: "center",
   },
-  addCircleText: { fontSize: 20, color: COLORS.textDim, lineHeight: 28 },
 
   daysRow: { flexDirection: "row" },
   dayChip: {
     backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    marginRight: SPACING.md,
+    minWidth: 130,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  dayChipActive: {
+    backgroundColor: COLORS.gymBg,
+    borderColor: COLORS.gym,
+  },
+  dayChipText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.textDim,
+    marginBottom: 6,
+  },
+  dayChipTextActive: { color: COLORS.gym },
+  dayChipBadge: {
+    backgroundColor: COLORS.bgElevated,
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  dayChipCount: { fontSize: 12, color: COLORS.textMuted, fontWeight: "600" },
+
+  emptyDayChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.bgElevated,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: RADIUS.md,
-    padding: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    marginRight: SPACING.sm,
-    minWidth: 110,
+    borderStyle: "dashed",
   },
-  dayChipActive: { backgroundColor: COLORS.gymBg, borderColor: COLORS.gym },
-  dayChipText: { fontSize: 13, fontWeight: "600", color: COLORS.textDim },
-  dayChipTextActive: { color: COLORS.gym },
-  dayChipCount: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
-
   emptyHint: {
-    color: COLORS.textMuted,
-    fontSize: 13,
-    alignSelf: "center",
+    color: COLORS.gym,
+    fontSize: 14,
+    fontWeight: "600",
     marginLeft: 8,
-    marginTop: 6,
   },
 
   exerciseRow: {
     backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
     flexDirection: "row",
     alignItems: "center",
   },
-  exerciseInfo: { flex: 1 },
-  exerciseName: { fontSize: 15, fontWeight: "600", color: COLORS.text },
-  exerciseSets: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  exerciseInfo: { flex: 1, paddingRight: 10 },
+  exerciseName: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  exerciseSets: { fontSize: 13, color: COLORS.textMuted, fontWeight: "500" },
 
   weightPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.gymBg,
+    backgroundColor: COLORS.bgElevated,
     borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderWidth: 1,
-    borderColor: COLORS.gym,
+    borderColor: COLORS.border,
     marginHorizontal: SPACING.sm,
   },
-  weightValue: { fontSize: 13, fontWeight: "700", color: COLORS.gym },
-  weightEditHint: { fontSize: 11, color: COLORS.gymDim, marginLeft: 4 },
+  weightValue: { fontSize: 15, fontWeight: "800", color: COLORS.gym },
+  weightUnitSmall: { fontSize: 12, fontWeight: "600" },
 
   weightEdit: {
     flexDirection: "row",
@@ -501,95 +660,145 @@ const styles = StyleSheet.create({
   },
   weightInput: {
     backgroundColor: COLORS.bgElevated,
-    borderRadius: RADIUS.sm,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
-    color: COLORS.gym,
-    fontSize: 14,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    color: COLORS.text,
+    fontSize: 15,
     fontWeight: "700",
     width: 60,
     borderWidth: 1,
     borderColor: COLORS.gym,
+    textAlign: "center",
   },
-  weightUnit: { color: COLORS.textMuted, fontSize: 12, marginLeft: 4 },
+  weightUnit: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    marginLeft: 6,
+    fontWeight: "500",
+  },
   saveBtn: {
     backgroundColor: COLORS.gym,
-    borderRadius: RADIUS.sm,
+    borderRadius: RADIUS.md,
     padding: 6,
-    marginLeft: 6,
+    marginLeft: 10,
   },
-  saveBtnText: { color: "#000", fontWeight: "800" },
 
-  deleteBtn: { padding: 6 },
-  deleteBtnText: { color: COLORS.textMuted, fontSize: 14 },
+  deleteBtn: { padding: 8, opacity: 0.6 },
 
   emptyCard: {
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.lg,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: COLORS.border,
+    borderStyle: "dashed",
     padding: SPACING.xl,
     alignItems: "center",
+    marginTop: SPACING.sm,
   },
-  emptyCardEmoji: { fontSize: 40, marginBottom: SPACING.sm },
-  emptyCardText: { fontSize: 15, fontWeight: "600", color: COLORS.textDim },
-  emptyCardSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.gymBg,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: SPACING.md,
+  },
+  emptyCardText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  emptyCardSub: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    textAlign: "center",
+    paddingHorizontal: 20,
+  },
 
   // Modals
-  overlay: {
+  overlay: { flex: 1 },
+  overlayInner: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "flex-end",
   },
   sheet: {
     backgroundColor: COLORS.bgCard,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: SPACING.lg,
-    paddingBottom: 40,
-    borderTopWidth: 1,
-    borderColor: COLORS.border,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: SPACING.xl,
+    paddingBottom: Platform.OS === "ios" ? 50 : SPACING.xl,
   },
   sheetHandle: {
-    width: 40,
-    height: 4,
+    width: 48,
+    height: 5,
     backgroundColor: COLORS.border,
-    borderRadius: 2,
+    borderRadius: 3,
     alignSelf: "center",
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.xl,
   },
   sheetTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontSize: 24,
+    fontWeight: "800",
     color: COLORS.text,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
   },
 
   inputLabel: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
     color: COLORS.textMuted,
-    marginBottom: 6,
+    marginBottom: 8,
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  input: {
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.bgElevated,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: SPACING.md,
-    color: COLORS.text,
-    fontSize: 15,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
+    paddingHorizontal: SPACING.md,
   },
-  row3: { flexDirection: "row", gap: SPACING.sm },
+  inputIcon: { marginRight: 10 },
+  inputFlex: {
+    flex: 1,
+    paddingVertical: Platform.OS === "ios" ? 16 : 12,
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: "500",
+  },
+
+  row3: { flexDirection: "row", gap: SPACING.md, marginBottom: SPACING.lg },
   col: { flex: 1 },
+  inputBox: {
+    backgroundColor: COLORS.bgElevated,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: Platform.OS === "ios" ? 16 : 12,
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
 
   primaryBtn: {
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
+    backgroundColor: COLORS.gym,
+    borderRadius: RADIUS.full,
+    padding: 18,
     alignItems: "center",
     marginTop: SPACING.sm,
   },
-  primaryBtnText: { fontSize: 16, fontWeight: "700" },
+  primaryBtnText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#000",
+    letterSpacing: 0.5,
+  },
 });
